@@ -26,6 +26,7 @@ from __future__ import division
 import numpy as np
 cimport numpy as np
 cimport cython
+ctypedef np.float_t FLOAT_t
 
 from libc.math cimport fabs, fmin
 from cython.parallel import prange
@@ -53,10 +54,10 @@ cdef double u(double x, int k, double a, double h) nogil:
     return(Pi((x - a)/h - (k - 2)))
 
 #----------------------------------------------------------------------
-def interpolate(double x,
-                double a, double b,
-                double[:] c,
-                ):
+def interpolate1d(double x,
+                  double a, double b,
+                  double[:] c,
+                  ):
     '''
     Return interpolated function value at x
     
@@ -77,6 +78,68 @@ def interpolate(double x,
         Approximated function value at x
     '''
     return(_interpolate(x, a, b, c))
+    
+def interpolate1d(np.ndarray[FLOAT_t, ndim=1] x,
+                  double a, double b,
+                  double[:] c,
+                  ):
+    '''
+    Return interpolated function value at x
+    
+    Parameters
+    ----------
+    x : float
+        The value where the function will be approximated at
+    a : double
+        Lower bound of the grid
+    b : double
+        Upper bound of the grid
+    c : ndarray
+        Coefficients of spline
+    
+    Returns
+    -------
+    out : float
+        Approximated function value at x
+    '''
+    cdef:
+        int k
+        cdef np.ndarray h = np.zeros_like(x)
+    for k in xrange(0, x.shape[0]):
+        h[k] = _interpolate(x[k], a, b, c)
+    return h
+    
+def interpolate1dx(np.ndarray[FLOAT_t, ndim=1] x,
+                  double a, double b,
+                  np.ndarray[FLOAT_t, ndim=2] c,
+                  ):
+    '''
+    Return interpolated function value at x
+    
+    Parameters
+    ----------
+    x : float
+        The value where the function will be approximated at
+    a : double
+        Lower bound of the grid
+    b : double
+        Upper bound of the grid
+    c : ndarray
+        Coefficients of spline
+    
+    Returns
+    -------
+    out : float
+        Approximated function value at x
+    '''
+    cdef:
+        int k
+        int u
+        cdef np.ndarray h = np.zeros([c.shape[0], x.shape[0]], dtype=np.float)
+    for k in xrange(0, x.shape[0]):
+        for u in xrange(0, c.shape[0]):
+            h[u, k] = _interpolate(x[k], a, b, c[u])
+    return h
 
 cdef double _interpolate(double x,
                          double a, double b,
@@ -97,7 +160,7 @@ cdef double _interpolate(double x,
     return(s)
 
 #----------------------------------------------------------------------
-def interpolate_2d(double x, double y,
+def interpolate2d(double x, double y,
                    double a1, double b1,
                    double a2, double b2,
                    double[:, :] c,
